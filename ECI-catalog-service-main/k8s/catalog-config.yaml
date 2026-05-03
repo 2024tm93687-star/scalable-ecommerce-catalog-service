@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: catalog-config
+data:
+  SERVICE_NAME: catalog-service
+  PORT: "3001"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: catalog-secret
+type: Opaque
+stringData:
+  db_password: postgres
+  database_url: postgres://postgres:postgres@catalog-db:5432/catalog_db

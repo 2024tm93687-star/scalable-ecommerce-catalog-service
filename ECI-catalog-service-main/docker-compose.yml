@@ -1,0 +1,28 @@
+version: '3.9'
+services:
+  catalog-db:
+    image: postgres:16
+    container_name: catalog-db
+    environment:
+      POSTGRES_DB: catalog_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5431:5432"
+    volumes:
+      - catalog_db_data:/var/lib/postgresql/data
+
+  catalog-service:
+    build: .
+    container_name: catalog-service
+    environment:
+      PORT: 3001
+      SERVICE_NAME: catalog-service
+      DATABASE_URL: postgres://postgres:postgres@catalog-db:5432/catalog_db
+    depends_on:
+      - catalog-db
+    ports:
+      - "3001:3001"
+
+volumes:
+  catalog_db_data:

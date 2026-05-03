@@ -1,0 +1,252 @@
+openapi: 3.0.3
+info:
+  title: ECI Catalog Service API
+  version: 1.0.0
+  description: Product catalog and pricing authority.
+servers:
+  - url: http://localhost:3001
+paths:
+  /health:
+    get:
+      summary: Health check
+      responses:
+        '200':
+          description: Healthy
+
+  /v1/products:
+    get:
+      summary: List products
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+        - in: query
+          name: q
+          schema:
+            type: string
+          description: Search by name/category/sku
+        - in: query
+          name: category
+          schema:
+            type: string
+        - in: query
+          name: is_active
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: Paginated products
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedProducts'
+    post:
+      summary: Create product
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateProductRequest'
+      responses:
+        '201':
+          description: Product created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+        '400':
+          $ref: '#/components/responses/StandardError'
+
+  /v1/products/{productId}:
+    get:
+      summary: Get product by id
+      parameters:
+        - $ref: '#/components/parameters/ProductIdPath'
+      responses:
+        '200':
+          description: Product
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+        '404':
+          $ref: '#/components/responses/StandardError'
+    patch:
+      summary: Update product
+      parameters:
+        - $ref: '#/components/parameters/ProductIdPath'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProductRequest'
+      responses:
+        '200':
+          description: Updated product
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+        '400':
+          $ref: '#/components/responses/StandardError'
+        '404':
+          $ref: '#/components/responses/StandardError'
+    delete:
+      summary: Soft delete product (sets is_active=false)
+      parameters:
+        - $ref: '#/components/parameters/ProductIdPath'
+      responses:
+        '204':
+          description: Deleted
+        '404':
+          $ref: '#/components/responses/StandardError'
+
+  /v1/products/pricing/resolve:
+    post:
+      summary: Resolve authoritative pricing for a set of SKUs
+      description: Called by Order service before total computation.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [items]
+              properties:
+                items:
+                  type: array
+                  items:
+                    type: object
+                    required: [sku, quantity]
+                    properties:
+                      sku:
+                        type: string
+                      quantity:
+                        type: integer
+                        minimum: 1
+      responses:
+        '200':
+          description: Pricing resolution
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        sku:
+                          type: string
+                        product_id:
+                          type: string
+                        unit_price:
+                          type: number
+                          format: float
+                        is_active:
+                          type: boolean
+                        found:
+                          type: boolean
+        '400':
+          $ref: '#/components/responses/StandardError'
+
+components:
+  parameters:
+    Page:
+      in: query
+      name: page
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    Limit:
+      in: query
+      name: limit
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 10
+    ProductIdPath:
+      in: path
+      name: productId
+      required: true
+      schema:
+        type: string
+  responses:
+    StandardError:
+      description: Standard error format
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+  schemas:
+    Error:
+      type: object
+      required: [code, message, correlationId]
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        correlationId:
+          type: string
+    Product:
+      type: object
+      properties:
+        product_id:
+          type: string
+        sku:
+          type: string
+        name:
+          type: string
+        category:
+          type: string
+        price:
+          type: number
+          format: float
+        is_active:
+          type: boolean
+    CreateProductRequest:
+      type: object
+      required: [sku, name, category, price]
+      properties:
+        sku:
+          type: string
+        name:
+          type: string
+        category:
+          type: string
+        price:
+          type: number
+          format: float
+        is_active:
+          type: boolean
+          default: true
+    UpdateProductRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        category:
+          type: string
+        price:
+          type: number
+          format: float
+        is_active:
+          type: boolean
+    PaginatedProducts:
+      type: object
+      properties:
+        page:
+          type: integer
+        limit:
+          type: integer
+        total:
+          type: integer
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Product'
